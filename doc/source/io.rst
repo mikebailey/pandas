@@ -2014,7 +2014,26 @@ The right-hand side of the sub-expression (after a comparsion operator) can be:
    - lists, e.g. ``"['A','B']"``
    - variables that are defined in the local names space, e.g. ``date``
 
-Here is an example:
+Here are some examples:
+
+.. ipython:: python
+
+    dfq = DataFrame(randn(10,4),columns=list('ABCD'),index=date_range('20130101',periods=10))
+    store.append('dfq',dfq,format='table',data_columns=True)
+
+Use boolean expressions, with in-line function evaluation.
+
+.. ipython:: python
+
+    store.select('dfq',"index>Timestamp('20130104') & columns=['A', 'B']")
+
+Use and inline column reference
+
+.. ipython:: python
+
+   store.select('dfq',where="A>0 or C>0")
+
+Works with a Panel as well.
 
 .. ipython:: python
 

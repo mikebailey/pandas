@@ -2061,6 +2061,13 @@ space. These are in terms of the total number of rows in a table.
    store.select('wp',"major_axis>20000102 & minor_axis=['A','B']",
                 start=0, stop=10)
 
+.. note::
+
+   ``select`` will raise a ``ValueError`` if the query expression has an unknown
+   variable reference. Usually this means that you are trying to select on a column
+   that is **not** a data_column.
+
+   ``select`` will raise a ``SyntaxError`` if the query expression is not valid.
 
 Indexing
 ~~~~~~~~

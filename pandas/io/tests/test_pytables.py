@@ -1950,9 +1950,9 @@ class TestHDFStore(unittest.TestCase):
             store.put('p4d', p4d, format='table')
 
             # some invalid terms
-            self.assertRaises(NameError, store.select, 'wp', "minor=['A', 'B']")
-            self.assertRaises(NameError, store.select, 'wp', ["index=['20121114']"])
-            self.assertRaises(NameError, store.select, 'wp', ["index=['20121114', '20121114']"])
+            self.assertRaises(ValueError, store.select, 'wp', "minor=['A', 'B']")
+            self.assertRaises(ValueError, store.select, 'wp', ["index=['20121114']"])
+            self.assertRaises(ValueError, store.select, 'wp', ["index=['20121114', '20121114']"])
 
             # deprecations
             with tm.assert_produces_warning(expected_warning=DeprecationWarning):
@@ -1967,6 +1967,22 @@ class TestHDFStore(unittest.TestCase):
             self.assertRaises(ValueError,  store.select, 'df','df.index[3]')
             self.assertRaises(SyntaxError, store.select, 'df','index>')
             self.assertRaises(ValueError,  store.select, 'wp', "major_axis<'20000108' & minor_axis['A', 'B']")
+
+        # from the docs
+        with tm.ensure_clean(self.path) as path:
+            dfq = DataFrame(np.random.randn(10,4),columns=list('ABCD'),index=date_range('20130101',periods=10))
+            dfq.to_hdf(path,'dfq',format='table',data_columns=True)
+
+            # check ok
+            read_hdf(path,'dfq',where="index>Timestamp('20130104') & columns=['A', 'B']")
+            read_hdf(path,'dfq',where="A>0 or C>0")
+
+        # catch the invalid reference
+        with tm.ensure_clean(self.path) as path:
+            dfq = DataFrame(np.random.randn(10,4),columns=list('ABCD'),index=date_range('20130101',periods=10))
+            dfq.to_hdf(path,'dfq',format='table')
+
+            self.assertRaises(ValueError, read_hdf, path,'dfq',where="A>0 or C>0")
 
     def test_terms(self):
 

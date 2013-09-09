@@ -345,23 +345,11 @@ class BinOp(Op):
         if self.op == '/' and env.locals['truediv']:
             self.func = op.truediv
 
-        # recurse over the left nodes
+        # recurse over the left/right nodes
         left = self.lhs(env)
-
-        # recurse over the right nodes
         right = self.rhs(env)
 
-        # base cases
-        if is_term(left) and is_term(right):
-            res = self.func(left.value, right.value)
-        elif not is_term(left) and is_term(right):
-            res = self.func(left, right.value)
-        elif is_term(left) and not is_term(right):
-            res = self.func(left.value, right)
-        elif not (is_term(left) or is_term(right)):
-            res = self.func(left, right)
-
-        return res
+        return self.func(left, right)
 
     def convert_values(self):
         def stringify(value):
@@ -400,31 +388,20 @@ class BinOp(Op):
         if engine == 'python':
             res = self(env)
         else:
-            # recurse over the left nodes
-            left = self.lhs.evaluate(env, engine, parser, term_type=term_type,
+            # recurse over the left/right nodes
+            left = self.lhs.evaluate(env, engine=engine, parser=parser,
+                                     term_type=term_type,
                                      eval_in_python=eval_in_python)
-
-            # recurse over the right nodes
-            right = self.rhs.evaluate(env, engine, parser, term_type=term_type,
+            right = self.rhs.evaluate(env, engine=engine, parser=parser,
+                                      term_type=term_type,
                                       eval_in_python=eval_in_python)
 
             # base cases
-            if is_term(left) and is_term(right):
-                if (self.op not in eval_in_python and
-                    not isinstance(left.value, string_types)):
-                    res = pd.eval(com.pprint_thing(self), local_dict=env)
-                else:
-                    res = self.func(left.value, right.value)
-            elif not is_term(left) and is_term(right):
-                left = pd.eval(com.pprint_thing(left), local_dict=env)
-                res = self.func(left, right.value)
-            elif is_term(left) and not is_term(right):
-                right = pd.eval(com.pprint_thing(right), local_dict=env)
-                res = self.func(left.value, right)
-            elif not (is_term(left) or is_term(right)):
-                left = pd.eval(com.pprint_thing(left), local_dict=env)
-                right = pd.eval(com.pprint_thing(right), local_dict=env)
-                res = self.func(left, right)
+            if self.op not in eval_in_python:
+                res = pd.eval(self, local_dict=env, engine=engine,
+                              parser=parser)
+            else:
+                res = self.func(left.value, right.value)
 
         name = env.add_tmp(res)
         return term_type(name, env=env)

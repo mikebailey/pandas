@@ -8,6 +8,8 @@ import numbers
 import codecs
 import csv
 
+from datetime import timedelta
+
 from distutils.version import LooseVersion
 
 from numpy.lib.format import read_array, write_array

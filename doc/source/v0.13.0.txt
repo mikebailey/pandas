@@ -133,7 +133,7 @@ HDFStore API Changes
 
        read_hdf(path,'dfq',where="index>Timestamp('20130104') & columns=['A', 'B']")
 
-    Use and inline column reference
+    Use an inline column reference
 
     .. ipython:: python
 
@@ -288,6 +288,7 @@ Performance Enhancments
 
       .. ipython:: python
 
+         nrows, ncols = 10, 5
          df1, df2, df3, df4 = [DataFrame(randn(nrows, ncols)) for _ in xrange(4)]
 
       .. ipython:: python
@@ -303,6 +304,18 @@ Performance Enhancments
     :meth:`~pandas.DataFrame.eval` that evaluates an expression in the context
     of the ``DataFrame``. For example,
 
+      .. ipython:: python
+         :suppress:
+
+         try:
+            del a
+         except NameError:
+            pass
+
+         try:
+            del b
+         except NameError:
+            pass
 
       .. ipython:: python
 
@@ -315,6 +328,24 @@ Performance Enhancments
   - In 0.13 a :meth:`~pandas.DataFrame.query` method has been added that allows
     you to select elements of a ``DataFrame`` using a natural query syntax
     nearly identical to Python syntax. For example,
+
+      .. ipython:: python
+         :suppress:
+
+         try:
+            del a
+         except NameError:
+            pass
+
+         try:
+            del b
+         except NameError:
+            pass
+
+         try:
+            del c
+         except NameError:
+            pass
 
       .. ipython:: python
 

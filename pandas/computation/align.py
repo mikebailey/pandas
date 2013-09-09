@@ -1,3 +1,6 @@
+"""Core eval alignment algorithms
+"""
+
 import warnings
 from functools import partial, wraps
 from pandas.compat import zip, range
@@ -7,7 +10,6 @@ import numpy as np
 import pandas as pd
 from pandas import compat
 import pandas.core.common as com
-from pandas.computation.ops import is_const
 
 
 def _align_core_single_unary_op(term):
@@ -164,7 +166,7 @@ def _align_core(terms):
 
 def _filter_terms(flat):
     # numeric literals
-    literals = frozenset(filter(is_const, flat))
+    literals = frozenset(filter(lambda x: isinstance(x, Constant), flat))
 
     # these are strings which are variable names
     names = frozenset(flat) - literals
@@ -213,7 +215,7 @@ def _reconstruct_object(typ, obj, axes, dtype):
 
     Returns
     -------
-    reconst : typ
+    ret : typ
         An object of type ``typ`` with the value `obj` and possible axes
         `axes`.
     """

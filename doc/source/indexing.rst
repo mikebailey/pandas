@@ -1024,6 +1024,7 @@ between the values of columns ``a`` and ``c``.
    :suppress:
 
    from numpy.random import randint, rand
+   del a
 
 .. ipython:: python
 
@@ -1065,6 +1066,9 @@ If instead you don't want to or cannot name your index, you can use the name
    del old_index
 
 
+:class:`~pandas.MultiIndex` Syntax
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 You can also use the levels of a ``DataFrame`` with a
 :class:`~pandas.MultiIndex` as if they were columns in the frame:
 
@@ -1072,13 +1076,14 @@ You can also use the levels of a ``DataFrame`` with a
 
    import pandas.util.testing as tm
 
-   a = tm.choice(['red', 'green'], size=10)
-   b = tm.choice(['eggs', 'ham'], size=10)
-   a
-   b
+   colors = tm.choice(['red', 'green'], size=10)
+   foods = tm.choice(['eggs', 'ham'], size=10)
+   colors
+   foods
 
-   index = MultiIndex.from_arrays([a, b], names=['color', 'food'])
+   index = MultiIndex.from_arrays([colors, foods], names=['color', 'food'])
    df = DataFrame(randn(10, 2), index=index)
+   df
    df.query('color == "red"')
 
 If the levels of the ``MultiIndex`` are unnamed, you can refer to them using
@@ -1087,14 +1092,18 @@ special names:
 
 .. ipython:: python
 
-   index = MultiIndex.from_arrays([a, b])
+   index.names = [None, None]
    df = DataFrame(randn(10, 2), index=index)
+   df
    df.query('ilevel_0 == "red"')
 
 
 The convention is ``ilevel_0``, which means "index level 0" for the 0th level
 of the ``index``.
 
+
+Use Cases
+~~~~~~~~~
 
 A use case for :meth:`~pandas.DataFrame.query` is when you have a collection of
 :class:`~pandas.DataFrame` objects that have a subset of column names (or index
@@ -1125,26 +1134,31 @@ This functionality can of course be combined with a slightly modified and more
 readable Python syntax implemented in the workhorse function that underlies
 :meth:`~pandas.DataFrame.query`--:func:`~pandas.eval`.
 
-Full numpy-like syntax
+
+Syntax Comparison
+~~~~~~~~~~~~~~~~~
+
+**Full numpy-like syntax**
 
 .. ipython:: python
 
    df = DataFrame(randint(n, size=(n, 3)), columns=list('abc'))
+   df
    df['(a < b) & (b < c)']
 
-Slightly nicer by removing the parentheses
+**Slightly nicer by removing the parentheses**
 
 .. ipython:: python
 
    df['a < b & b < c']
 
-Use English instead of symbols
+**Use English instead of symbols**
 
 .. ipython:: python
 
    df['a < b and b < c']
 
-Pretty close to how you might write it on paper
+**Pretty close to how you might write it on paper**
 
 .. ipython:: python
 
@@ -1153,6 +1167,10 @@ Pretty close to how you might write it on paper
 As you can see, these are all equivalent ways to express the same operation (in
 fact, they are all ultimately parsed into something very similar to the first
 example of the indexing syntax above).
+
+
+``in``/``not in``
+~~~~~~~~~~~~~~~~~
 
 :meth:`~pandas.DataFrame.query` also supports special use of Python's ``in`` and
 ``not in`` comparison operators, providing a succint syntax for calling the
@@ -1209,6 +1227,10 @@ way, but you have the option to use either ``==``/``in`` or ``!=``/``not in``:
 
    # pure Python
    df[df.c.isin([1, 2])]
+
+
+``not``/``~``
+~~~~~~~~~~~~~
 
 You can also negate boolean expressions with the word ``not`` or the ``~``
 operator.

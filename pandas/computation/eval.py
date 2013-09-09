@@ -3,6 +3,7 @@
 import numbers
 import numpy as np
 
+from pandas.core import common as com
 from pandas.compat import string_types
 from pandas.computation.expr import Expr, _parsers, _ensure_scope
 from pandas.computation.engines import _engines
@@ -33,6 +34,11 @@ def _check_resolvers(resolvers):
         if not hasattr(resolver, '__getitem__'):
             raise AttributeError('Resolver of type {0!r} must implement '
                                  '__getitem__'.format(type(resolver).__name__))
+
+
+def _check_expression(expr):
+    if not expr:
+        raise ValueError("expr cannot be the empty string")
 
 
 def eval(expr, parser='pandas', engine='numexpr', truediv=True,
@@ -109,6 +115,9 @@ def eval(expr, parser='pandas', engine='numexpr', truediv=True,
     --------
     pandas.DataFrame.query
     """
+    # make sure we're not passed the empty string
+    _check_expression(expr)
+
     # make sure we're passed a valid engine
     _check_engine(engine)
 
@@ -123,10 +132,8 @@ def eval(expr, parser='pandas', engine='numexpr', truediv=True,
     env = _ensure_scope(global_dict=global_dict, local_dict=local_dict,
                         resolvers=resolvers, level=level)
 
-    # barf if the user tries to pass something other than a string
-    if not isinstance(expr, string_types):
-        raise TypeError("eval only accepts strings, you passed an object of "
-                        "type {0!r}".format(type(expr).__name__))
+    # expressions must be convertible to strings
+    expr = com.pprint_thing(expr)
 
     # expressions have an engine, parser, scope and a division flag
     parsed_expr = Expr(expr, engine=engine, parser=parser, env=env,

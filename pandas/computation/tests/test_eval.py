@@ -9,7 +9,7 @@ import ast
 import nose
 from nose.tools import assert_raises, assert_true, assert_false, assert_equal
 
-from numpy.random import randn, rand
+from numpy.random import randn, rand, randint
 import numpy as np
 from numpy.testing import assert_array_equal, assert_allclose
 from numpy.testing.decorators import slow
@@ -27,6 +27,7 @@ from pandas.computation.ops import (_binary_ops_dict, _unary_ops_dict,
                                     _special_case_arith_ops_syms,
                                     _arith_ops_syms, _bool_ops_syms)
 import pandas.computation.expr as expr
+import pandas.util.testing as tm
 from pandas.util.testing import (assert_frame_equal, randbool,
                                  assertRaisesRegexp,
                                  assert_produces_warning, assert_series_equal)
@@ -135,7 +136,7 @@ class TestEvalNumexprPandas(unittest.TestCase):
         self.bin_ops = expr._bool_ops_syms
         self.special_case_ops = _special_case_arith_ops_syms
         self.arith_ops = _good_arith_ops
-        self.unary_ops = '+', '-', '~', 'not '
+        self.unary_ops = '-', '~', 'not '
 
     def setUp(self):
         self.setup_ops()
@@ -178,13 +179,6 @@ class TestEvalNumexprPandas(unittest.TestCase):
     def test_pow(self):
         for lhs, rhs in product(self.lhses, self.rhses):
             self.check_pow(lhs, '**', rhs)
-
-    @slow
-    def test_unary_arith_ops(self):
-        for unary_op, lhs, arith_op, rhs in product(self.unary_ops, self.lhses,
-                                                    self.arith_ops,
-                                                    self.rhses):
-            self.check_unary_arith_op(lhs, arith_op, rhs, unary_op)
 
     @slow
     def test_single_invert_op(self):
@@ -434,33 +428,224 @@ class TestEvalNumexprPandas(unittest.TestCase):
                 ev = pd.eval(ex, engine=self.engine, parser=self.parser)
                 assert_array_equal(ev, result)
 
-    @skip_incompatible_operand
-    def check_unary_arith_op(self, lhs, arith1, rhs, unary_op):
-        # simple
-        ex = '{0}lhs'.format(unary_op, arith1)
-        f = _unary_ops_dict[unary_op]
-        bad_types = np.floating, float, numbers.Real
+    def ex(self, op, var_name='lhs'):
+        return '{0}{1}'.format(op, var_name)
 
-        if isinstance(lhs, bad_types):
-            raise nose.SkipTest("Incompatiable type for ~ operator")
-        if isinstance(rhs, bad_types):
-            raise nose.SkipTest("Incompatiable type for ~ operator")
+    def test_frame_invert(self):
+        expr = self.ex('~')
 
-        try:
-            expected = f(lhs.values)
-        except AttributeError:
-            expected = f(lhs)
+        ## ~ ##
+        # frame
+        ## float always raises
+        lhs = DataFrame(randn(5, 2))
+        if self.engine == 'numexpr':
+            with tm.assertRaises(NotImplementedError):
+                result = pd.eval(expr, engine=self.engine, parser=self.parser)
+        else:
+            with tm.assertRaises(TypeError):
+                result = pd.eval(expr, engine=self.engine, parser=self.parser)
 
-        result = pd.eval(ex, engine=self.engine, parser=self.parser)
-        assert_array_equal(result, expected)
+        ## int raises on numexpr
+        lhs = DataFrame(randint(5, size=(5, 2)))
+        if self.engine == 'numexpr':
+            with tm.assertRaises(NotImplementedError):
+                result = pd.eval(expr, engine=self.engine, parser=self.parser)
+        else:
+            expect = ~lhs
+            result = pd.eval(expr, engine=self.engine, parser=self.parser)
+            assert_frame_equal(expect, result)
 
-        for engine in self.current_engines:
-            skip_if_no_ne(engine)
-            assert_array_equal(result, pd.eval(ex, engine=engine,
-                                               parser=self.parser))
+        ## bool always works
+        lhs = DataFrame(rand(5, 2) > 0.5)
+        expect = ~lhs
+        result = pd.eval(expr, engine=self.engine, parser=self.parser)
+        assert_frame_equal(expect, result)
 
-        ex = '{0}(lhs {1} rhs)'.format(unary_op, arith1)
-        result = pd.eval(ex, engine=self.engine, parser=self.parser)
+        ## object raises
+        lhs = DataFrame({'b': ['a', 1, 2.0], 'c': rand(3) > 0.5})
+        if self.engine == 'numexpr':
+            with tm.assertRaises(ValueError):
+                result = pd.eval(expr, engine=self.engine, parser=self.parser)
+        else:
+            with tm.assertRaises(TypeError):
+                result = pd.eval(expr, engine=self.engine, parser=self.parser)
+
+    def test_series_invert(self):
+        #### ~ ####
+        expr = self.ex('~')
+
+        # series
+        ## float raises
+        lhs = Series(randn(5))
+        if self.engine == 'numexpr':
+            with tm.assertRaises(NotImplementedError):
+                result = pd.eval(expr, engine=self.engine, parser=self.parser)
+        else:
+            with tm.assertRaises(TypeError):
+                result = pd.eval(expr, engine=self.engine, parser=self.parser)
+
+        ## int raises on numexpr
+        lhs = Series(randint(5, size=5))
+        if self.engine == 'numexpr':
+            with tm.assertRaises(NotImplementedError):
+                result = pd.eval(expr, engine=self.engine, parser=self.parser)
+        else:
+            expect = ~lhs
+            result = pd.eval(expr, engine=self.engine, parser=self.parser)
+            assert_series_equal(expect, result)
+
+        ## bool
+        lhs = Series(rand(5) > 0.5)
+        expect = ~lhs
+        result = pd.eval(expr, engine=self.engine, parser=self.parser)
+        assert_series_equal(expect, result)
+
+        # float
+        # int
+        # bool
+
+        # object
+        lhs = Series(['a', 1, 2.0])
+        if self.engine == 'numexpr':
+            with tm.assertRaises(ValueError):
+                result = pd.eval(expr, engine=self.engine, parser=self.parser)
+        else:
+            with tm.assertRaises(TypeError):
+                result = pd.eval(expr, engine=self.engine, parser=self.parser)
+
+    def test_frame_negate(self):
+        expr = self.ex('-')
+
+        # float
+        lhs = DataFrame(randn(5, 2))
+        expect = -lhs
+        result = pd.eval(expr, engine=self.engine, parser=self.parser)
+        assert_frame_equal(expect, result)
+
+        # int
+        lhs = DataFrame(randint(5, size=(5, 2)))
+        expect = -lhs
+        result = pd.eval(expr, engine=self.engine, parser=self.parser)
+        assert_frame_equal(expect, result)
+
+        # bool doesn't work with numexpr but works elsewhere
+        lhs = DataFrame(rand(5, 2) > 0.5)
+        if self.engine == 'numexpr':
+            with tm.assertRaises(NotImplementedError):
+                result = pd.eval(expr, engine=self.engine, parser=self.parser)
+        else:
+            expect = -lhs
+            result = pd.eval(expr, engine=self.engine, parser=self.parser)
+            assert_frame_equal(expect, result)
+
+    def test_series_negate(self):
+        expr = self.ex('-')
+
+        # float
+        lhs = Series(randn(5))
+        expect = -lhs
+        result = pd.eval(expr, engine=self.engine, parser=self.parser)
+        assert_series_equal(expect, result)
+
+        # int
+        lhs = Series(randint(5, size=5))
+        expect = -lhs
+        result = pd.eval(expr, engine=self.engine, parser=self.parser)
+        assert_series_equal(expect, result)
+
+        # bool doesn't work with numexpr but works elsewhere
+        lhs = Series(rand(5) > 0.5)
+        if self.engine == 'numexpr':
+            with tm.assertRaises(NotImplementedError):
+                result = pd.eval(expr, engine=self.engine, parser=self.parser)
+        else:
+            expect = -lhs
+            result = pd.eval(expr, engine=self.engine, parser=self.parser)
+            assert_series_equal(expect, result)
+
+    def test_frame_pos(self):
+        expr = self.ex('+')
+
+        # float
+        lhs = DataFrame(randn(5, 2))
+        if self.engine == 'python':
+            with tm.assertRaises(TypeError):
+                result = pd.eval(expr, engine=self.engine, parser=self.parser)
+        else:
+            expect = lhs
+            result = pd.eval(expr, engine=self.engine, parser=self.parser)
+            assert_frame_equal(expect, result)
+
+        # int
+        lhs = DataFrame(randint(5, size=(5, 2)))
+        if self.engine == 'python':
+            with tm.assertRaises(TypeError):
+                result = pd.eval(expr, engine=self.engine, parser=self.parser)
+        else:
+            expect = lhs
+            result = pd.eval(expr, engine=self.engine, parser=self.parser)
+            assert_frame_equal(expect, result)
+
+        # bool doesn't work with numexpr but works elsewhere
+        lhs = DataFrame(rand(5, 2) > 0.5)
+        if self.engine == 'python':
+            with tm.assertRaises(TypeError):
+                result = pd.eval(expr, engine=self.engine, parser=self.parser)
+        else:
+            expect = lhs
+            result = pd.eval(expr, engine=self.engine, parser=self.parser)
+            assert_frame_equal(expect, result)
+
+    def test_series_pos(self):
+        expr = self.ex('+')
+
+        # float
+        lhs = Series(randn(5))
+        if self.engine == 'python':
+            with tm.assertRaises(TypeError):
+                result = pd.eval(expr, engine=self.engine, parser=self.parser)
+        else:
+            expect = lhs
+            result = pd.eval(expr, engine=self.engine, parser=self.parser)
+            assert_series_equal(expect, result)
+
+        # int
+        lhs = Series(randint(5, size=5))
+        if self.engine == 'python':
+            with tm.assertRaises(TypeError):
+                result = pd.eval(expr, engine=self.engine, parser=self.parser)
+        else:
+            expect = lhs
+            result = pd.eval(expr, engine=self.engine, parser=self.parser)
+            assert_series_equal(expect, result)
+
+        # bool doesn't work with numexpr but works elsewhere
+        lhs = Series(rand(5) > 0.5)
+        if self.engine == 'python':
+            with tm.assertRaises(TypeError):
+                result = pd.eval(expr, engine=self.engine, parser=self.parser)
+        else:
+            expect = lhs
+            result = pd.eval(expr, engine=self.engine, parser=self.parser)
+            assert_series_equal(expect, result)
+
+    def test_scalar_unary(self):
+        with tm.assertRaises(TypeError):
+            pd.eval('~1.0', engine=self.engine, parser=self.parser)
+
+        self.assertEqual(pd.eval('-1.0', parser=self.parser, engine=self.engine), -1.0)
+        self.assertEqual(pd.eval('+1.0', parser=self.parser, engine=self.engine), +1.0)
+
+        self.assertEqual(pd.eval('~1', parser=self.parser, engine=self.engine), ~1)
+        self.assertEqual(pd.eval('-1', parser=self.parser, engine=self.engine), -1)
+        self.assertEqual(pd.eval('+1', parser=self.parser, engine=self.engine), +1)
+
+        self.assertEqual(pd.eval('~True', parser=self.parser, engine=self.engine), ~True)
+        self.assertEqual(pd.eval('~False', parser=self.parser, engine=self.engine), ~False)
+        self.assertEqual(pd.eval('-True', parser=self.parser, engine=self.engine), -True)
+        self.assertEqual(pd.eval('-False', parser=self.parser, engine=self.engine), -False)
+        self.assertEqual(pd.eval('+True', parser=self.parser, engine=self.engine), +True)
+        self.assertEqual(pd.eval('+False', parser=self.parser, engine=self.engine), +False)
 
 
 class TestEvalNumexprPython(TestEvalNumexprPandas):

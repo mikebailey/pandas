@@ -234,7 +234,11 @@ def _reconstruct_object(typ, obj, axes, dtype):
         issubclass(typ, pd.core.generic.PandasObject)):
         return typ(obj, dtype=res_t, **axes)
 
-    ret_value = typ(obj).astype(res_t)
+    # special case for pathological things like ~True/~False
+    if hasattr(res_t, 'type') and typ == np.bool_ and res_t != np.bool_:
+        ret_value = res_t.type(obj)
+    else:
+        ret_value = typ(obj).astype(res_t)
 
     try:
         ret = ret_value.item()

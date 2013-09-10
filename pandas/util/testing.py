@@ -68,8 +68,7 @@ def choice(x, size=10):
     try:
         return np.random.choice(x, size=size)
     except AttributeError:
-        ind = np.random.randint(len(x), size=size)
-        return np.asarray(x)[ind]
+        return np.random.randint(len(x), size=size).choose(x)
 
 #------------------------------------------------------------------------------
 # Console debugging tools

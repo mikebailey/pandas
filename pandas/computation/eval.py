@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+"""Top level ``eval`` module.
+"""
+
 import numbers
 import numpy as np
 
@@ -10,10 +13,26 @@ from pandas.computation.engines import _engines
 
 
 def _check_engine(engine):
-    """make sure a valid engine is passed"""
+    """Make sure a valid engine is passed.
+
+    Parameters
+    ----------
+    engine : str
+
+    Raises
+    ------
+    KeyError
+      * If an invalid engine is passed
+    ImportError
+      * If numexpr was requested but doesn't exist
+    """
     if engine not in _engines:
         raise KeyError('Invalid engine {0!r} passed, valid engines are'
-                       ' {1}'.format(engine, _engines.keys()))
+                       ' {1}'.format(engine, list(_engines.keys())))
+
+    # TODO: validate this in a more general way (thinking of future engines
+    # that won't necessarily be import-able)
+    # Could potentially be done on engine instantiation
     if engine == 'numexpr':
         try:
             import numexpr
@@ -23,22 +42,74 @@ def _check_engine(engine):
 
 
 def _check_parser(parser):
-    """make sure a valid parser is passed"""
+    """Make sure a valid parser is passed.
+
+    Parameters
+    ----------
+    parser : str
+
+    Raises
+    ------
+    KeyError
+      * If an invalid parser is passed
+    """
     if parser not in _parsers:
         raise KeyError('Invalid parser {0!r} passed, valid parsers are'
                        ' {1}'.format(parser, _parsers.keys()))
 
 
 def _check_resolvers(resolvers):
-    for resolver in resolvers:
-        if not hasattr(resolver, '__getitem__'):
-            raise AttributeError('Resolver of type {0!r} must implement '
-                                 '__getitem__'.format(type(resolver).__name__))
+    if resolvers is not None:
+        for resolver in resolvers:
+            if not hasattr(resolver, '__getitem__'):
+                name = type(resolver).__name__
+                raise AttributeError('Resolver of type {0!r} must implement '
+                                     'the __getitem__ method'.format(name))
 
 
 def _check_expression(expr):
+    """Make sure an expression is not an empty string
+
+    Parameters
+    ----------
+    expr : object
+        An object that can be converted to a string
+
+    Raises
+    ------
+    ValueError
+      * If expr is an empty string
+    """
     if not expr:
-        raise ValueError("expr cannot be the empty string")
+        raise ValueError("expr cannot be an empty string")
+
+
+def _convert_expression(expr):
+    """Convert an object to an expression.
+
+    Thus function converts an object to an expression (a unicode string) and
+    checks to make sure it isn't empty after conversion. This is used to
+    convert operators to their string representation for recursive calls to
+    :func:`~pandas.eval`.
+
+    Parameters
+    ----------
+    expr : object
+        The object to be converted to a string.
+
+    Returns
+    -------
+    s : unicode
+        The string representation of an object.
+
+    Raises
+    ------
+    ValueError
+      * If the expression is empty.
+    """
+    s = com.pprint_thing(expr)
+    _check_expression(s)
+    return s
 
 
 def eval(expr, parser='pandas', engine='numexpr', truediv=True,
@@ -56,7 +127,7 @@ def eval(expr, parser='pandas', engine='numexpr', truediv=True,
 
     Parameters
     ----------
-    expr : string
+    expr : str or unicode
         The expression to evaluate. This string cannot contain any Python
         `statements
         <http://docs.python.org/2/reference/simple_stmts.html#simple-statements>`__,
@@ -97,11 +168,11 @@ def eval(expr, parser='pandas', engine='numexpr', truediv=True,
         instance attributes.
     level : int, optional
         The number of prior stack frames to traverse and add to the current
-        scope. Most users will **not** need to tinker with this parameter.
+        scope. Most users will **not** need to change this parameter.
 
     Returns
     -------
-    ret : ndarray, numeric scalar, :class:`~pandas.DataFrame`, :class:`~pandas.Series`
+    ndarray, numeric scalar, DataFrame, Series
 
     Notes
     -----
@@ -114,40 +185,22 @@ def eval(expr, parser='pandas', engine='numexpr', truediv=True,
     See Also
     --------
     pandas.DataFrame.query
+    pandas.DataFrame.eval
     """
-    # make sure we're not passed the empty string
-    _check_expression(expr)
-
-    # make sure we're passed a valid engine
+    expr = _convert_expression(expr)
     _check_engine(engine)
-
-    # and parser
     _check_parser(parser)
-
-    # make sure all the resolvers have a __getitem__ method
-    if resolvers is not None:
-        _check_resolvers(resolvers)
+    _check_resolvers(resolvers)
 
     # get our (possibly passed-in) scope
     env = _ensure_scope(global_dict=global_dict, local_dict=local_dict,
                         resolvers=resolvers, level=level)
 
-    # expressions must be convertible to strings
-    expr = com.pprint_thing(expr)
-
-    # expressions have an engine, parser, scope and a division flag
     parsed_expr = Expr(expr, engine=engine, parser=parser, env=env,
                        truediv=truediv)
 
-    # construct the engine and evaluate
+    # construct the engine and evaluate the parsed expression
     eng = _engines[engine]
     eng_inst = eng(parsed_expr)
     ret = eng_inst.evaluate()
-
-    # sanity check for a number if it's a scalar result
-    # TODO: eventually take out
-    if np.isscalar(ret):
-        if not isinstance(ret, (np.number, np.bool_, numbers.Number)):
-            raise TypeError('scalar result must be numeric or bool, return'
-                            ' type is {0!r}'.format(type(ret).__name__))
     return ret

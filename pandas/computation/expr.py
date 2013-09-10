@@ -1,3 +1,6 @@
+""":func:`~pandas.eval` parsers
+"""
+
 import ast
 import operator
 import sys
@@ -22,12 +25,15 @@ from pandas.computation.ops import Op, BinOp, UnaryOp, Term, Constant, Div
 
 def _ensure_scope(level=2, global_dict=None, local_dict=None, resolvers=None,
                   **kwargs):
-    """ ensure that we are grabbing the correct scope """
+    """Ensure that we are grabbing the correct scope."""
     return Scope(gbls=global_dict, lcls=local_dict, level=level,
                  resolvers=resolvers)
 
 
 def _check_disjoint_resolver_names(resolver_keys, local_keys, global_keys):
+    """Make sure that variables in resolvers don't overlap with locals or
+    globals.
+    """
     res_locals = list(com.intersection(resolver_keys, local_keys))
     if res_locals:
         msg = "resolvers and locals overlap on names {0}".format(res_locals)
@@ -40,6 +46,9 @@ def _check_disjoint_resolver_names(resolver_keys, local_keys, global_keys):
 
 
 def _replacer(x, pad_size):
+    """Replace a number with its padded hexadecimal representation. Used to tag
+    temporary variables with their calling scope's id.
+    """
     # get the hex repr of the binary char and remove 0x and pad by pad_size
     # zeros
     try:
@@ -52,6 +61,7 @@ def _replacer(x, pad_size):
 
 
 def _raw_hex_id(obj, pad_size=2):
+    """Return the padded hexadecimal id of ``obj``."""
     # interpret as a pointer since that's what really what id returns
     packed = struct.pack('@P', id(obj))
 
@@ -214,6 +224,9 @@ class Scope(StringMixin):
 
 
 def _rewrite_assign(source):
+    """Rewrite the assignment operator for PyTables expression that want to use
+    ``=`` as a substitute for ``==``.
+    """
     res = []
     g = tokenize.generate_tokens(StringIO(source).readline)
     for toknum, tokval, _, _, _ in g:
@@ -222,18 +235,24 @@ def _rewrite_assign(source):
 
 
 def _replace_booleans(source):
+    """Replace ``&`` with ``and`` and ``|`` with ``or`` so that bitwise
+    precedence is changed to boolean precedence.
+    """
     return source.replace('|', ' or ').replace('&', ' and ')
 
 
 def _replace_locals(source, local_symbol='@'):
+    """Replace local variables with a syntacticall valid name."""
     return source.replace(local_symbol, _LOCAL_TAG)
 
 
 def _preparse(source):
+    """Compose assignment and boolean replacement."""
     return _replace_booleans(_rewrite_assign(source))
 
 
 def _is_type(t):
+    """Factory for a type checking function of type ``t`` or tuple of types."""
     return lambda x: isinstance(x.value, t)
 
 
@@ -248,6 +267,7 @@ _all_nodes = frozenset(filter(lambda x: isinstance(x, type) and
 
 
 def _filter_nodes(superclass, all_nodes=_all_nodes):
+    """Filter out AST nodes that are subclasses of ``superclass``."""
     node_names = (node.__name__ for node in all_nodes
                   if issubclass(node, superclass))
     return frozenset(node_names)
@@ -294,6 +314,9 @@ assert not _unsupported_nodes & _base_supported_nodes, _msg
 
 
 def _node_not_implemented(node_name, cls):
+    """Return a function that raises a NotImplementedError with a passed node
+    name.
+    """
     def f(self, *args, **kwargs):
         raise NotImplementedError("{0!r} nodes are not "
                                   "implemented".format(node_name))
@@ -301,6 +324,13 @@ def _node_not_implemented(node_name, cls):
 
 
 def disallow(nodes):
+    """Decorator to disallow certain nodes from parsing. Raises a
+    NotImplementedError instead.
+
+    Returns
+    -------
+    disallowed : callable
+    """
     def disallowed(cls):
         cls.unsupported_nodes = ()
         for node in nodes:
@@ -313,7 +343,20 @@ def disallow(nodes):
 
 
 def _op_maker(op_class, op_symbol):
+    """Return a function to create an op class with its symbol already passed.
+
+    Returns
+    -------
+    f : callable
+    """
     def f(self, node, *args, **kwargs):
+        """Return a partial function with an Op subclass with an operator
+        already passed.
+
+        Returns
+        -------
+        f : callable
+        """
         return partial(op_class, op_symbol, *args, **kwargs)
     return f
 
@@ -322,6 +365,7 @@ _op_classes = {'binary': BinOp, 'unary': UnaryOp}
 
 
 def add_ops(op_classes):
+    """Decorator to add default implementation of ops."""
     def f(cls):
         for op_attr_name, op_class in compat.iteritems(op_classes):
             ops = getattr(cls, '{0}_ops'.format(op_attr_name))
@@ -329,8 +373,8 @@ def add_ops(op_classes):
             for op in ops:
                 op_node = ops_map[op]
                 if op_node is not None:
-                    setattr(cls, 'visit_{0}'.format(op_node),
-                            _op_maker(op_class, op))
+                    made_op = _op_maker(op_class, op)
+                    setattr(cls, 'visit_{0}'.format(op_node), made_op)
         return cls
     return f
 
@@ -338,9 +382,16 @@ def add_ops(op_classes):
 @disallow(_unsupported_nodes)
 @add_ops(_op_classes)
 class BaseExprVisitor(ast.NodeVisitor):
-    """Custom ast walker
-    """
+    """Custom ast walker. Parsers of other engines should subclass this class
+    if necessary.
 
+    Parameters
+    ----------
+    env : Scope
+    engine : str
+    parser : str
+    preparser : callable
+    """
     const_type = Constant
     term_type = Term
 
@@ -627,7 +678,7 @@ class PythonExprVisitor(BaseExprVisitor):
 
 
 class Expr(StringMixin):
-    """Expr object holding scope
+    """Object encapsulating an expression.
 
     Parameters
     ----------
@@ -682,6 +733,13 @@ class Expr(StringMixin):
         _check_disjoint_resolver_names(res_keys, lcl_keys, gbl_keys)
 
     def add_resolvers_to_locals(self):
+        """Add the extra scope (resolvers) to local scope
+
+        Notes
+        -----
+        This should be done after parsing and pre-evaluation, otherwise
+        unnecessary name clashes will occur.
+        """
         self.env.locals.update(self.env.resolver_dict)
 
 
@@ -699,9 +757,24 @@ _ops_to_filter = frozenset([' and ', ' or ', 'not ', ' in '])
 
 
 def maybe_expression(s, kind='pandas'):
-    """ loose checking if s is an expression """
+    """Loose checking if ``s`` is an expression.
+
+    Parameters
+    ----------
+    s : str or unicode
+        The expression to check
+    kind : str or unicode
+        The parser whose ops to check
+
+    Returns
+    -------
+    bool
+        ``True`` the expression contains some operators that would be valid
+        when parsed with the ``kind`` parser, otherwise ``False``.
+    """
     if not isinstance(s, string_types):
         return False
+
     visitor = _parsers[kind]
     ops = visitor.binary_ops + visitor.unary_ops
     filtered = (frozenset(ops) | _ops_to_filter) - _needs_filter
@@ -711,6 +784,7 @@ def maybe_expression(s, kind='pandas'):
 
 
 def isexpr(s, check_names=True):
+    """Strict checking for a valid expression."""
     try:
         Expr(s, env=_ensure_scope() if check_names else None)
     except SyntaxError:
@@ -718,10 +792,6 @@ def isexpr(s, check_names=True):
     except NameError:
         return not check_names
     return True
-
-
-def _check_syntax(s):
-    ast.parse(s)
 
 
 _parsers = {'python': PythonExprVisitor, 'pandas': PandasExprVisitor}

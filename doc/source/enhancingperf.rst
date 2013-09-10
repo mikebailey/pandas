@@ -384,8 +384,8 @@ Now let's do the same thing but with comparisons:
 
    %timeit pd.eval('df1 + df2 + df3 + df4 + s')
 
-The :class:`~pandas.DataFrame` **.** :meth:`~pandas.DataFrame.eval` method
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The ``DataFrame.eval`` method
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In addition to the top level :func:`~pandas.eval` function you can also
 evaluate an expression in the "context" of a ``DataFrame``.
@@ -398,9 +398,9 @@ evaluate an expression in the "context" of a ``DataFrame``.
 
 
 Any expression that is a valid :func:`~pandas.eval` expression is also a valid
-:meth:`~pandas.DataFrame.eval` expression, with the added benefit that *you
-don't have to prefix the name of the* ``DataFrame`` *to the column you're
-interested in evaluating*.
+``DataFrame.eval`` expression, with the added benefit that *you don't have to
+prefix the name of the* ``DataFrame`` *to the column you're interested in
+evaluating*.
 
 
 Local Variables

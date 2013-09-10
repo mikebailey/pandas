@@ -2053,6 +2053,25 @@ class TestHDFStore(unittest.TestCase):
             for t in terms:
                 store.select('p4d', t)
 
+    def test_term_compat(self):
+        with ensure_clean(self.path) as store:
+
+            wp = Panel(np.random.randn(2, 5, 4), items=['Item1', 'Item2'],
+                       major_axis=date_range('1/1/2000', periods=5),
+                       minor_axis=['A', 'B', 'C', 'D'])
+            store.append('wp',wp)
+
+            with tm.assert_produces_warning(expected_warning=DeprecationWarning):
+                result = store.select('wp', [Term('major_axis>20000102'),
+                                                Term('minor_axis', '=', ['A','B']) ])
+                expected = wp.loc[:,wp.major_axis>Timestamp('20000102'),['A','B']]
+                assert_panel_equal(result, expected)
+
+            store.remove('wp', Term('major_axis>20000103'))
+            result = store.select('wp')
+            expected = wp.loc[:,wp.major_axis<=Timestamp('20000103'),:]
+            assert_panel_equal(result, expected)
+
     def test_same_name_scoping(self):
 
         with ensure_clean(self.path) as store:

@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 
 def _ensure_decoded(s):

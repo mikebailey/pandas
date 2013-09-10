@@ -215,13 +215,13 @@ use case of this is to fill a DataFrame with the mean of that column.
 
 .. ipython:: python
 
-        df = DataFrame(np.random.randn(10,3))
-        df.iloc[3:5,0] = np.nan
-        df.iloc[4:6,1] = np.nan
-        df.iloc[5:8,2] = np.nan
-        df
+   df = DataFrame(np.random.randn(10,3),columns=['one','two','three'])
+   df.iloc[3:5,0] = np.nan
+   df.iloc[4:6,1] = np.nan
+   df.iloc[5:8,2] = np.nan
+   df
 
-        df.fillna(df.mean())
+   df.fillna(df.mean())
 
 .. versionadded:: 0.13
 
@@ -230,7 +230,7 @@ a Series in this case.
 
 .. ipython:: python
 
-        df.where(pd.notnull(df),df.mean(),axis='columns')
+   df.where(pd.notnull(df),df.mean(),axis='columns')
 
 .. _missing_data.dropna:
 

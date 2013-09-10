@@ -1285,10 +1285,12 @@ Of course, expressions can be arbitrarily complex too
 Index objects
 -------------
 
-The pandas Index class and its subclasses can be viewed as implementing an
-*ordered set* in addition to providing the support infrastructure necessary for
-lookups, data alignment, and reindexing. The easiest way to create one directly
-is to pass a list or other sequence to ``Index``:
+The pandas :class:`~pandas.Index` class and its subclasses can be viewed as
+implementing an *ordered multiset* (duplicates are allowed).
+:class:`~pandas.Index` also provides the infrastructure necessary for
+lookups, data alignment, and reindexing. The easiest way to create an
+:class:`~pandas.Index` directly is to pass a ``list`` or other sequence to
+:class:`~pandas.Index`:
 
 .. ipython:: python
 

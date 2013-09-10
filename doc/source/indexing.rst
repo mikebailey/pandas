@@ -1262,16 +1262,16 @@ Of course, expressions can be arbitrarily complex too
 
 .. ipython:: python
 
-   # nice short query syntax
-   pretty = df['a < b < c and (not bools) or bools > 2']
+   # short query syntax
+   shorter = df['a < b < c and (not bools) or bools > 2']
 
-   # equivalent in pure Python, yuck!
-   yuck = df[(df.a < df.b) & (df.b < df.c) & (~df.bools) | (df.bools > 2)]
+   # equivalent in pure Python
+   longer = df[(df.a < df.b) & (df.b < df.c) & (~df.bools) | (df.bools > 2)]
 
-   pretty
-   yuck
+   shorter
+   longer
 
-   yuck == pretty
+   shorter == longer
 
 .. ipython:: python
    :suppress:

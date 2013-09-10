@@ -1024,7 +1024,6 @@ between the values of columns ``a`` and ``c``.
    :suppress:
 
    from numpy.random import randint, rand
-   del a
 
 .. ipython:: python
 
@@ -1066,8 +1065,8 @@ If instead you don't want to or cannot name your index, you can use the name
    del old_index
 
 
-:class:`~pandas.MultiIndex` Syntax
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+:class:`~pandas.MultiIndex` :meth:`~pandas.DataFrame.query` Syntax
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can also use the levels of a ``DataFrame`` with a
 :class:`~pandas.MultiIndex` as if they were columns in the frame:
@@ -1102,10 +1101,10 @@ The convention is ``ilevel_0``, which means "index level 0" for the 0th level
 of the ``index``.
 
 
-Use Cases
-~~~~~~~~~
+:meth:`~pandas.DataFrame.query` Use Cases
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A use case for :meth:`~pandas.DataFrame.query` is when you have a collection of
+One use case for :meth:`~pandas.DataFrame.query` is when you have a collection of
 :class:`~pandas.DataFrame` objects that have a subset of column names (or index
 levels/names) in common. You can pass the same query to both frames *without*
 having to specify which frame you're interested in querying
@@ -1135,8 +1134,8 @@ readable Python syntax implemented in the workhorse function that underlies
 :meth:`~pandas.DataFrame.query`--:func:`~pandas.eval`.
 
 
-Syntax Comparison
-~~~~~~~~~~~~~~~~~
+:meth:`~pandas.DataFrame.query` Python versus `pandas` Syntax Comparison
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Full numpy-like syntax**
 
@@ -1145,6 +1144,7 @@ Syntax Comparison
    df = DataFrame(randint(n, size=(n, 3)), columns=list('abc'))
    df
    df['(a < b) & (b < c)']
+   df[(df.a < df.b) & (df.b < df.c)]
 
 **Slightly nicer by removing the parentheses**
 
@@ -1212,6 +1212,20 @@ queries:
    df[df.b.isin(df.a) & (df.c < df.d)]
 
 
+.. note::
+
+   Note that ``in`` and ``not in`` are evaluated in Python, since ``numexpr``
+   has no equivalent of this operation. However, **only the** ``in``/``not in``
+   **expression itself** is evaluated in vanilla Python. For example, in the
+   expression
+
+       .. code-block:: python
+
+          df['a in (b + c + d)']
+
+   `b + c + d` is actually evaluated by ``numexpr`` and *then* the ``in``
+   operation is evaluated in plain Python.
+
 Comparing a ``list`` of values (including a ``list`` of strings) works the same
 way, but you have the option to use either ``==``/``in`` or ``!=``/``not in``:
 
@@ -1229,8 +1243,8 @@ way, but you have the option to use either ``==``/``in`` or ``!=``/``not in``:
    df[df.c.isin([1, 2])]
 
 
-``not``/``~``
-~~~~~~~~~~~~~
+``not``/``~``/Boolean Operators
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can also negate boolean expressions with the word ``not`` or the ``~``
 operator.
@@ -1258,7 +1272,6 @@ Of course, expressions can be arbitrarily complex too
    yuck
 
    yuck == pretty
-
 
 .. ipython:: python
    :suppress:

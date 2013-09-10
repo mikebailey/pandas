@@ -381,11 +381,11 @@ class BinOp(Op):
                                       eval_in_python=eval_in_python)
 
             # base cases
-            if self.op not in eval_in_python:
+            if self.op in eval_in_python:
+                res = self.func(left.value, right.value)
+            else:
                 res = pd.eval(self, local_dict=env, engine=engine,
                               parser=parser)
-            else:
-                res = self.func(left.value, right.value)
 
         name = env.add_tmp(res)
         return term_type(name, env=env)

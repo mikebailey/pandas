@@ -11690,13 +11690,17 @@ class TestDataFrameQueryStrings(object):
         expec = df[df.b.isin(df.a) & (df.c < df.d)]
         assert_frame_equal(res, expec)
 
-    def test_object_array_equality(self):
+    def test_object_array_eq_ne(self):
         df = DataFrame({'a': list('aaaabbbbcccc'),
                         'b': list('aabbccddeeff'),
                         'c': np.random.randint(5, size=12),
                         'd': np.random.randint(9, size=12)})
         res = df['a == b']
         exp = df[df.a == df.b]
+        assert_frame_equal(res, exp)
+
+        res = df['a != b']
+        exp = df[df.a != df.b]
         assert_frame_equal(res, exp)
 
 

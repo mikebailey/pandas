@@ -489,14 +489,19 @@ class BaseExprVisitor(ast.NodeVisitor):
                               self.term_type, eval_in_python)
 
     def _possibly_evaluate_binop(self, op, op_class, lhs, rhs,
-                                 eval_in_python=('in', 'not in')):
+                                 eval_in_python=('in', 'not in'),
+                                 maybe_eval_in_python=('==', '!=')):
         res = op(lhs, rhs)
 
-        # if we want to evaluate something in python space
+        # "in"/"not in" ops are always evaluated in python
         if res.op in eval_in_python:
             return self._possibly_eval(res, eval_in_python)
-
-        # otherwise our op is okay
+        elif (lhs.return_type == object or rhs.return_type == object and
+              self.engine != 'pytables'):
+            # evaluate "==" and "!=" in python if either of our operands has an
+            # object return type
+            return self._possibly_eval(res, eval_in_python +
+                                       maybe_eval_in_python)
         return res
 
     def visit_BinOp(self, node, **kwargs):

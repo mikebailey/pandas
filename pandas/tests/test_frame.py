@@ -11676,7 +11676,7 @@ class TestDataFrameQueryStrings(object):
         for parser, engine in product(PARSERS, ENGINES):
             yield self.check_query_with_string_columns, parser, engine
 
-    def test_query_with_string_columns_numexpr_only(self):
+    def test_query_with_string_columns_numexpr(self):
         skip_if_no_ne()
         df = DataFrame({'a': list('aaaabbbbcccc'),
                         'b': list('aabbccddeeff'),
@@ -11690,7 +11690,26 @@ class TestDataFrameQueryStrings(object):
         expec = df[df.b.isin(df.a) & (df.c < df.d)]
         assert_frame_equal(res, expec)
 
+    def check_object_array_eq_ne(self, parser, engine):
+        skip_if_no_ne(engine)
+        df = DataFrame({'a': list('aaaabbbbcccc'),
+                        'b': list('aabbccddeeff'),
+                        'c': np.random.randint(5, size=12),
+                        'd': np.random.randint(9, size=12)})
+        res = df.query('a == b', parser=parser, engine=engine)
+        exp = df[df.a == df.b]
+        assert_frame_equal(res, exp)
+
+        res = df.query('a != b', parser=parser, engine=engine)
+        exp = df[df.a != df.b]
+        assert_frame_equal(res, exp)
+
     def test_object_array_eq_ne(self):
+        for parser, engine in product(PARSERS, ENGINES):
+            yield self.check_object_array_eq_ne, parser, engine
+
+    def test_object_array_eq_ne_getitem(self):
+        skip_if_no_ne()
         df = DataFrame({'a': list('aaaabbbbcccc'),
                         'b': list('aabbccddeeff'),
                         'c': np.random.randint(5, size=12),
